@@ -1,0 +1,76 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.integrate import solve_ivp
+
+G = 6.67430e-11  #gravitational constant in m^3 kg^-1 s^-2
+
+m1 = 5.972e24  #Earth mass
+m2 = 7.348e22  #Moon mass
+
+#initial positions in meters
+r1_0 = np.array([0, 0])
+r2_0 = np.array([384400e3, 0])
+
+#initial velocities in meters per second
+v2_0 = np.array([0, 1022])  #Moon's orbital speed
+mo2_0=m2*v2_0
+v1_0 = np.array([0, -(mo2_0/m1)[1]]) #Earth no longer starts stationary but the total momentum is zero
+
+#make everthing into a single vector
+initial_state = np.concatenate((r1_0, r2_0, v1_0, v2_0))
+
+#how long does the simulation runs for
+t_span = (0, 86400 * 120)  # 10 years
+t_eval = np.linspace(t_span[0], t_span[1], 100000)
+
+#initial momentums (this part is relevant if you wish to have a system at zero initial momentum, if not you can disregard momentum calculations)
+mo1_0=m1*v1_0 #initial momentum of the earth
+mo2_0=m2*v2_0 #initial momentum of the moon
+print(mo1_0)
+print(mo2_0)
+
+total_momentum= mo1_0+mo2_0
+print(total_momentum)
+
+#main function used for the calculations
+def motion_calculations(t, state):
+  #reassagning the variables from the state vector
+  r1 = state[0:2]
+  r2 = state[2:4]
+  v1 = state[4:6]
+  v2 = state[6:8]
+
+  #distance between the two bodies
+  r = np.linalg.norm(r2 - r1)
+
+  #accelerations
+  a1 = G * m2 * (r2 - r1) / r**3
+  a2 = G * m1 * (r1 - r2) / r**3
+
+  #velocities and accelerations into a vector
+  derivatives = np.concatenate((v1, v2, a1, a2))
+  return derivatives
+
+#differential equations solution
+solution = solve_ivp(motion_calculations, t_span, initial_state, t_eval=t_eval, rtol=1e-10, atol=1e-10) #DONT FROGET TO SET THE NUMBER OF STEPS
+
+#positions of the two bodies
+r1_sol = solution.y[0:2]
+r2_sol = solution.y[2:4]
+
+#if you would like to check out what is the output
+#print(solution)
+
+#graphing
+plt.figure(figsize=(8, 6))
+plt.plot(r1_sol[0], r1_sol[1], label='Earth', color='blue')
+plt.plot(r2_sol[0], r2_sol[1], label='Moon', color='grey')
+plt.scatter(0, 0, color='blue', label='Earth (initial)')
+plt.scatter(r2_0[0], r2_0[1], color='grey', label='Moon (initial)')
+plt.xlabel('x position (m)')
+plt.ylabel('y position (m)')
+plt.legend()
+plt.title('Two-Body Problem: Earth and Moon')
+plt.grid(True)
+plt.axis('equal') #sometimes not using equal axes is better for visualization, it is up to you how you want to present the findings
+plt.show()
