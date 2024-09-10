@@ -1,0 +1,141 @@
+#this section is not used for the research however it is fun to play around with
+
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.integrate import solve_ivp
+import math
+import random
+
+G = 6.67430e-11  #gravitational constant in m^3 kg^-1 s^-2
+
+m1 = 5.972e24  #Earth mass
+m2 = 1*(1.989e30/3)  #Sun1 mass
+m3 = 1*(1.989e30/3)  #Sun2 mass
+
+#to be used as the boundries of the initial poisitions
+x_zone=(-3.59e11, 3.59e11)
+y_zone=(-3.59e11, 3.59e11)
+
+r1_0_x=random.uniform(x_zone[0], x_zone[1])
+r1_0_y=random.uniform(y_zone[0], y_zone[1])
+
+r2_0_x=random.uniform(x_zone[0], x_zone[1])
+r2_0_y=random.uniform(y_zone[0], y_zone[1])
+
+r3_0_x=random.uniform(x_zone[0], x_zone[1])
+r3_0_y=random.uniform(y_zone[0], y_zone[1])
+
+#if you are using this I highly advise you add safety so that they don't start on top of each other
+
+#initial positions in meters
+r1_0 = np.array([r1_0_x, r1_0_y])
+r2_0 = np.array([r2_0_x, r2_0_y])
+r3_0 = np.array([r3_0_x, r3_0_y])
+
+#initial velocities in meters per second
+v1_0 = np.array([0, 27000])  #Earth's orbital speed 29800
+mo1_0=m1*v1_0
+v2_0 = np.array([0, 10000]) #since two suns are identical in mass, they have the same initial velocity
+v3_0 = np.array([0, -10000]) #230000 m/s is the speed at which the sun orbits the galaxy
+
+#make everthing into a single vector
+initial_state = np.concatenate((r1_0, r2_0, r3_0, v1_0, v2_0, v3_0))
+
+#how long does the simulation runs for
+t_span = (0, 86400 * 365 * 5) # 5 years
+t_epoints = 100000 #number of points in time taken
+t_eval = np.linspace(t_span[0], t_span[1], t_epoints) 
+
+round = 0 #which round is the derivation going through
+
+def motion_calculations(t, state):
+  #reassagning the variables from the state vector
+  r1 = state[0:2]
+  r2 = state[2:4]
+  r3 = state[4:6]
+  v1 = state[6:8]
+  v2 = state[8:10]
+  v3 = state[10:12]
+
+  #print ("states:",state)
+  #print ("got states")
+
+  #distance between the bodies
+  r12 = np.linalg.norm(r2 - r1)
+  r13 = np.linalg.norm(r3 - r1)
+  r23 = np.linalg.norm(r3 - r2)
+  #print ("r12:",r12)
+  #print ("r13:",r13)
+  #print ("r23:",r23)
+
+  #print ("time passed:",t)
+
+  global ddc1
+  global ddc2
+  global ddf1
+
+  #print ("calculated distances")
+  if r12 < ddc1 or r13 < ddc1:
+    print ("!!!one star is too close!!!")
+    #print ("time passed:",t)
+    stable_time_end.append(t)
+    #print ("time passed in days:",t/86400)
+    return np.zeros_like(state)
+  elif r12 < ddc2 and r13 < ddc2:
+    print ("!!!both stars combined are too close!!!")
+    #print ("time passed:",t)
+    stable_time_end.append(t)
+    #print ("time passed in days:",t/86400)
+    return np.zeros_like(state)
+  elif r12 > ddf1 and r13 > ddf1:
+    print ("!!!both stars are too far!!!")
+    #print ("time passed:",t)
+    stable_time_end.append(t)
+    #print ("time passed in days:",t/86400)
+    return np.zeros_like(state)
+
+  #accelerations
+  a1 = ( G * m2 * (r2 - r1) / r12**3 ) + ( G * m3 * (r3 - r1) / r13**3 )
+  a2 = ( G * m1 * (r1 - r2) / r12**3 ) + ( G * m3 * (r3 - r2) / r23**3 )
+  a3 = ( G * m1 * (r1 - r3) / r13**3 ) + ( G * m2 * (r2 - r3) / r23**3 )
+
+  #print("a1",a1)
+  #print("a2",a2)
+  #print("a3",a3)
+
+  #print ("calculated accelerations")
+  #print ("time", t)
+  #velocities and accelerations into a vector
+  derivatives = np.concatenate((v1, v2, v3, a1, a2, a3))
+  #print ("calculated derivatives")
+  #print ("derivatives=",derivatives)
+  return derivatives
+
+
+solution = solve_ivp(motion_calculations, t_span, initial_state, t_eval=t_eval, rtol=1e-5, atol=1e-5)
+
+#print (solution)
+#print (solution.y)
+
+#positions of the two bodies
+r1_sol = solution.y[0:2]
+r2_sol = solution.y[2:4]
+r3_sol = solution.y[4:6]
+
+print(stable_time_end[0]) #if this line causes an error, it means your initial conditions were stable for the whole duration the simulation was ran for
+
+#plotting
+plt.figure(figsize=(8, 6))
+plt.plot(r1_sol[0], r1_sol[1], label='Earth', color='blue')
+plt.plot(r2_sol[0], r2_sol[1], label='Sun1', color='orange')
+plt.plot(r3_sol[0], r3_sol[1], label='Sun2', color='red')
+plt.scatter(r1_0[0], r1_0[1], color='blue', label='Earth (initial)')
+plt.scatter(r2_0[0], r2_0[1], color='orange', label='Sun1 (initial)')
+plt.scatter(r3_0[0], r3_0[1], color='red', label='Sun2 (initial)')
+plt.xlabel('x position (m)')
+plt.ylabel('y position (m)')
+plt.legend()
+plt.title('Three-Body Problem: Two Suns and Earth')
+plt.grid(True)
+#plt.axis('equal')
+plt.show()
