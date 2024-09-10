@@ -1,0 +1,63 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.integrate import solve_ivp
+
+G = 6.67430e-11  #gravitational constant in m^3 kg^-1 s^-2
+
+m1 = 1.989e30  #Sun1 mass
+m2 = 1.989e30  #Sun2 mass
+
+#initial positions in meters
+r1_0 = np.array([0, 0])
+r2_0 = np.array([1.4212e11, 0])
+
+#initial velocities in meters per second
+v2_0 = np.array([0, 100000])
+v1_0 = np.array([0, -100000])
+
+#make everthing into a single vector
+initial_state = np.concatenate((r1_0, r2_0, v1_0, v2_0))
+
+#how long does the simulation runs for
+t_span = (0, 86400 * 360 * 50)  # 50 years
+t_eval = np.linspace(t_span[0], t_span[1], 100000)
+
+#main function used for the calculations
+def motion_calculations(t, state):
+  #reassagning the variables from the state vector
+  r1 = state[0:2]
+  r2 = state[2:4]
+  v1 = state[4:6]
+  v2 = state[6:8]
+
+  #distance between the two bodies
+  r = np.linalg.norm(r2 - r1)
+
+  #accelerations
+  a1 = G * m2 * (r2 - r1) / r**3
+  a2 = G * m1 * (r1 - r2) / r**3
+
+  #velocities and accelerations into a vector
+  derivatives = np.concatenate((v1, v2, a1, a2))
+  return derivatives
+
+#differential equations solution
+solution = solve_ivp(motion_calculations, t_span, initial_state, t_eval=t_eval, rtol=1e-10, atol=1e-10)
+
+#positions of the two bodies
+r1_sol = solution.y[0:2]
+r2_sol = solution.y[2:4]
+
+#plotting
+plt.figure(figsize=(8, 6))
+plt.plot(r1_sol[0], r1_sol[1], label='sun1', color='red')
+plt.plot(r2_sol[0], r2_sol[1], label='sun2', color='orange')
+plt.scatter(0, 0, color='red', label='sun1 (initial)')
+plt.scatter(r2_0[0], r2_0[1], color='orange', label='sun2 (initial)')
+plt.xlabel('x position (m)')
+plt.ylabel('y position (m)')
+plt.legend()
+#plt.title('Two-Body Problem: Earth and Moon')
+plt.grid(True)
+#plt.axis('equal')
+plt.show()
